@@ -55,14 +55,16 @@ const login = async (req, res, next) => {
       data: registrationToken,
     },
     "secret"
-  );  
+  );
   existingUser.token = token;
   existingUser.registrationToken = registrationToken;
   try {
     await existingUser.save();
-  } catch (error) { 
+  } catch (error) {
     console.error(error);
-    return next(new HttpError("failed to update user tokens, try again later", 500));
+    return next(
+      new HttpError("failed to update user tokens, try again later", 500)
+    );
   }
   res.status(200).json({
     code: 200,
@@ -122,14 +124,14 @@ const signup = async (req, res, next) => {
 
   // create a new user
   const createdUser = {
-    name,
-    phone,
-    email,
+    name: name,
+    phone: phone,
+    email: email,
     password: hashedPassword,
-    avatarPath,
-    address,
-    registrationToken,
-    token,
+    avatarPath: avatarPath,
+    address: address,
+    registrationToken: registrationToken,
+    token: token,
     stores: [],
   };
   let user;
@@ -159,13 +161,20 @@ const refreshToken = async (req, res, next) => {
     },
     "secret"
   );
+  let user;
+  try { 
+    user = await UserModel.findOne({ registrationToken });
+    user.token = token;
+    await user.save();
+  } catch (error) {
+    return next(new HttpError("failed to refresh token, try again later", 500));
+  }
   res.status(200).json({
     code: 200,
     message: "token refreshed successfully",
     token: token,
   });
 };
-
 
 exports.getUsers = getUsers;
 exports.login = login;
