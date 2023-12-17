@@ -6,6 +6,7 @@ const UserModel = require("../model/user");
 const user = require("../model/user");
 // const express = require("express");
 var jwt = require("jsonwebtoken");
+const { logger } = require("../utils/app-logger");
 
 const getUsers = async (req, res, next) => {
   let users;
@@ -54,8 +55,15 @@ const login = async (req, res, next) => {
       data: registrationToken,
     },
     "secret"
-  );
-
+  );  
+  existingUser.token = token;
+  existingUser.registrationToken = registrationToken;
+  try {
+    await existingUser.save();
+  } catch (error) { 
+    console.error(error);
+    return next(new HttpError("failed to update user tokens, try again later", 500));
+  }
   res.status(200).json({
     code: 200,
     message: "user logged in successfully",
@@ -77,6 +85,7 @@ const signup = async (req, res, next) => {
     avatarPath,
     address,
     registrationToken,
+    token,
   } = req.body;
   // check email format
   if (!emailValidator.validate(email)) {
@@ -120,6 +129,7 @@ const signup = async (req, res, next) => {
     avatarPath,
     address,
     registrationToken,
+    token,
     stores: [],
   };
   let user;
@@ -127,6 +137,7 @@ const signup = async (req, res, next) => {
     const userModel = new UserModel(createdUser);
     user = await userModel.save();
   } catch (e) {
+    console.log(e);
     return next(new HttpError("could not signup", 500));
   }
   // remove password before sending response
@@ -139,6 +150,24 @@ const signup = async (req, res, next) => {
   });
 };
 
+const refreshToken = async (req, res, next) => {
+  const { registrationToken } = req.body;
+  const token = jwt.sign(
+    {
+      exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      data: registrationToken,
+    },
+    "secret"
+  );
+  res.status(200).json({
+    code: 200,
+    message: "token refreshed successfully",
+    token: token,
+  });
+};
+
+
 exports.getUsers = getUsers;
 exports.login = login;
 exports.signup = signup;
+exports.refreshToken = refreshToken;
